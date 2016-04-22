@@ -34,7 +34,7 @@ Decrypt encrypted files:
 ```
 $ sh file.enc >file2
 Enter pass phrase for /dev/fd/3:
-$ sh another-file.enc >another-file2
+$ sh <another-file.enc >another-file2
 Enter pass phrase for /dev/fd/3:
 ```
 
