@@ -1,0 +1,171 @@
+#!/bin/sh
+
+# prints a part of the file between # $part start an # $part end markers
+extract_file_part() {
+    local file=$1
+    local part=$2
+
+    # find the line numbers of the start and the end markers
+    local start=$(grep -a -n "^# ${part} start$" "$file" | head -n1 | cut -f1 -d:) || {
+        echo "Start marker for part $part not found in $file" >&2
+        return 2
+    }
+    local end=$(grep -a -n "^# ${part} end$" "$file" | head -n1 | cut -f1 -d:) || {
+        echo "End marker for part $part not found in $file" >&2
+        return 2
+    }
+
+    # check that the end marker is below the start marker with enough lines between them
+    if [ $((end - start)) -lt 3 ]; then
+        echo "Invalid start or end marker for part $part in $file" >&2
+        return 2
+    fi
+
+    # print a part
+    tail -n +$((start + 2)) "$file" | head -n $((end - start - 3))
+}
+
+# print usage if needed
+if [ "$1" = "--help" -o "$1" = "-h" ]; then
+    echo "Usage: $0 [previously-encrypted-file.sh] <file >encrypted-file.sh" >&2
+    exit 0
+fi
+
+# parse and validate arguments
+input_encrypted_file=$1
+if [ ! -z "$input_encrypted_file" -a ! -f "$input_encrypted_file" ]; then
+    echo "$input_encrypted_file does not exist or it's not a regular file" >&2
+    exit 1
+fi
+
+# check that openssl works
+openssl version >/dev/null || {
+    echo "openssl is not available" >&2
+    exit 1
+}
+
+# generate or retrieve rsa keys
+
+rsa_public=
+encrypted_rsa_private=
+
+if [ -z "$input_encrypted_file" ]; then
+    # generate private rsa key, retrieve public key from it
+    encrypted_rsa_private=$(openssl genrsa -aes256 2048) || {
+        echo "openssl genrsa failed" >&2
+        exit 2
+    }
+    rsa_public=$(echo "$encrypted_rsa_private" | openssl rsa -pubout) || {
+        echo "openssl rsa failed" >&2
+        exit 2
+    }
+else
+    # retrieve private and public rsa keys from $input_encrypted_file
+    encrypted_rsa_private=$(extract_file_part "$input_encrypted_file" "encrypted rsa private") || exit 2
+    rsa_public=$(extract_file_part "$input_encrypted_file" "rsa public") || exit 2
+fi
+
+# generate random data password
+data_password=$(openssl rand -hex 120)
+if [ $? -ne 0 -o ${#data_password} -ne 240 ]; then
+    echo "openssl rand failed" >&2
+    exit 2
+fi
+
+# encrypt data password using rsa public key
+encrypted_data_password=$(
+    # print rsa public key and redirect it to fd 3
+    echo "$rsa_public" | {
+        printf %s "$data_password" | openssl rsautl -pubin -inkey /dev/fd/3 -encrypt | openssl base64
+    } 3<&0
+) || {
+    echo "openssl rsautl failed" >&2
+    exit 2
+}
+
+# write decrypt program and necessary keys
+cat <<EOF
+#/bin/sh
+
+# check that openssl works
+openssl version >/dev/null || {
+    echo "openssl is not available" >&2
+    exit 1
+}
+
+# encrypted rsa private start
+encrypted_rsa_private="
+$encrypted_rsa_private
+"
+# encrypted rsa private end
+
+# encrypted data password start
+encrypted_data_password="
+$encrypted_data_password
+"
+# encrypted data password end
+
+# decrypt data password from encrypted rsa private key
+data_password=\$(
+    echo "\$encrypted_rsa_private" | {
+        echo "\$encrypted_data_password" | openssl base64 -d | openssl rsautl -inkey /dev/fd/3 -decrypt
+    } 3<&0
+) || {
+    echo "openssl rsautl failed" >&2
+    exit 1
+}
+
+if [ "\$0" = "/bin/sh" ]; then
+    # if this script was run as a pipe through /bin/sh e.g. cat encrypted | /bin/sh
+
+    # skip lines
+    while read line; do
+        if [ "\$line" = "# encrypted file start" ]; then
+            # now stdin is exactly at encrypted data, print data password to fd 4 and decrypt stdin
+            {
+                printf %s "\$data_password" | {
+                    openssl aes-256-cbc -d -pass fd:4
+                } 4<&0 0<&3
+            } 3<&0 || {
+                echo "openssl aes-256-cbc failed" >&2
+                exit 2
+            }
+            exit 0
+        fi
+    done
+    echo "Start marker for encrypted file part not found" >&2
+    exit 1
+else
+    encrypted_file_start=\$(grep -a -n "^# encrypted file start$" "\$0" | head -n1 | cut -f1 -d:) || {
+        echo "Start marker for encrypted file part not found in \$0" >&2
+        exit 1
+    }
+
+    printf %s "\$data_password" | {
+        tail -n +\$((encrypted_file_start + 1)) "\$0" | openssl aes-256-cbc -d -pass fd:3
+    } 3<&0 || {
+        echo "openssl aes-256-cbc failed" >&2
+        exit 1
+    }
+fi
+exit 0
+
+# rsa public start
+
+$rsa_public
+
+# rsa public end
+
+# encrypted file start
+EOF
+
+# encrypt stdin using data password, encrypted result will be written to the stdout
+# stdin goes into fd 3; password goes into fd 4
+{
+    printf %s "$data_password" | {
+        openssl aes-256-cbc -pass fd:4
+    } 4<&0 0<&3
+} 3<&0 || {
+    echo "openssl aes-256-cbc failed" >&2
+    exit 2
+}
