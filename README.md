@@ -27,14 +27,14 @@ writing RSA key
 
 Encrypt another file with the same password. Now you won't be asked for a password.
 ```
-$ shenc file.enc < another-file > another-file.enc
+$ shenc file.enc <another-file >another-file.enc
 ```
 
 Decrypt encrypted files:
 ```
-$ sh file.enc >file2
+$ /bin/sh file.enc >file2
 Enter pass phrase for /dev/fd/3:
-$ sh <another-file.enc >another-file2
+$ cat another-file.enc | /bin/sh >another-file2
 Enter pass phrase for /dev/fd/3:
 ```
 
