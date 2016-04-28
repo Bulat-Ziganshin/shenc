@@ -57,7 +57,7 @@ $ shenc --decrypt <file.enc.sh >file
 Enter pass phrase for /dev/fd/3:
 ```
 
-Also you can use an encrypted file as a shell script to decrypt itself. You don't need shenc utility in this case.
+Also you can use an encrypted file as a shell script to decrypt itself. You don't need `shenc` utility in this case.
 Please ensure that `file.enc.sh` came from a trusted source.
 ```
 $ /bin/sh file.enc.sh > file
