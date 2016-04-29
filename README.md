@@ -8,7 +8,7 @@ An entire encryption scheme depends on a secure pass phrase.
 I recommend you to use at least 12-length alphanumeric random password.
 You can use the following command to generate a good password: `openssl rand -base64 9`.
 
-shenc uses standard algorithms (RSA with 2048 bit key, AES-256-CBC)
+shenc uses standard algorithms (RSA with 2048 bit key, AES-128-CBC)
 so the encryption should be adequate in most cases.
 Please inspect the code before you use it. I did my best but I'm not a crypto expert.
 Perform regular tests of encrypted files, bugs can and will happen.
@@ -89,7 +89,7 @@ Enter pass phrase for /dev/fd/3:
 Key file and encrypted file formats are very straightforward and self-explaining.
 Program doesn't buffer file in memory, so you could encrypt huge files, send them via ssh, decrypt them there, etc,
 without any extra memory consumption.
-Overhead of encrypted file is about 3.5 KB. Encryption uses AES-256 and should be very fast on modern processors: around 400 MB/s on my laptop.
+Overhead of encrypted file is about 3.5 KB. Encryption uses AES-256 and should be very fast on modern processors: around 500 MB/s on my laptop.
 You can use `shenc --extract-key <file.enc.sh >key-file.sh` to extract a key file from an existing encrypted file.
 
 I tested that program with OS X 10.11, OpenBSD 5.9. It should work with any UNIX-like environment.

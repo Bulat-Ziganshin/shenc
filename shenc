@@ -49,7 +49,7 @@ printf '"'%s'"' "$encrypted_rsa_private" "$encrypted_data_password"
 # encrypt stdin using data password and print encrypted result
 # stdin goes into fd 3; password goes into fd 4
 {
-    printf %%s "$data_password" | { openssl aes-256-cbc -pass fd:4 ; } 4<&0 0<&3
+    printf %%s "$data_password" | { openssl aes-128-cbc -pass fd:4 ; } 4<&0 0<&3
 } 3<&0 || {
     echo "openssl enc failed" >&2
     exit 2
@@ -97,9 +97,9 @@ data_password=$(
         if [ "$line" = "# encrypted file start" ]; then
             # now stdin is exactly at encrypted data, print data password to fd 4 and decrypt stdin
             {
-                printf %%s "$data_password" | { openssl aes-256-cbc -d -pass fd:4 ; } 4<&0 0<&3
+                printf %%s "$data_password" | { openssl aes-128-cbc -d -pass fd:4 ; } 4<&0 0<&3
             } 3<&0 || {
-                echo "openssl aes-256-cbc failed" >&2
+                echo "openssl enc failed" >&2
                 exit 2
             }
             exit 0
@@ -161,7 +161,7 @@ end
 }
 
 generate_key() {
-    encrypted_rsa_private=$(openssl genrsa -aes256 2048) || {
+    encrypted_rsa_private=$(openssl genrsa -aes128 2048) || {
         echo "openssl genrsa failed" >&2
         exit 2
     }
@@ -203,7 +203,7 @@ encrypt() {
     # encrypt stdin using data password, encrypted result will be written to the stdout
     # stdin goes into fd 3; password goes into fd 4
     {
-        printf %s "$data_password" | { openssl aes-256-cbc -pass fd:4 ; } 4<&0 0<&3
+        printf %s "$data_password" | { openssl aes-128-cbc -pass fd:4 ; } 4<&0 0<&3
     } 3<&0 || {
         echo "openssl enc failed" >&2
         exit 2
@@ -276,9 +276,9 @@ decrypt() {
 
             # now stdin is exactly at encrypted data, print data password to fd 4 and decrypt stdin
             {
-                printf %s "$data_password" | { openssl aes-256-cbc -d -pass fd:4 ; } 4<&0 0<&3
+                printf %s "$data_password" | { openssl aes-128-cbc -d -pass fd:4 ; } 4<&0 0<&3
             } 3<&0 || {
-                echo "openssl aes-256-cbc failed" >&2
+                echo "openssl enc failed" >&2
                 exit 2
             }
             exit 0
