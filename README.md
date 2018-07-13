@@ -74,7 +74,7 @@ Enter pass phrase for /dev/fd/3:
 
 1. Retrieve `rsa_public`, `encrypted_rsa_private` values from the key file.
 2. Generate 120-byte random data password using `openssl rand`. It's encoded using hex encoding. Let it be `data_password`.
-3. Encrypt user file with AES-256-CBC using `openssl enc` with `data_password`. Let the result be `encrypted_file`.
+3. Encrypt user file with AES-128-CBC using `openssl enc` with `data_password`. Let the result be `encrypted_file`.
 4. Encrypt `data_password` using `openssl rsa` with `rsa_public`. Let the result be `encrypted_data_password`.
 5. Combine decrypt shell program, `encrypted_rsa_private`, `encrypted_data_password`, `encrypted_file`. It's the resulting encrypted file.
 
